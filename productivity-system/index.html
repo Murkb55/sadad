@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>نظام الإنجاز الذكي</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600&family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0c12;--bg2:#11141c;--bg3:#181c27;--bg4:#1f2434;--bg5:#262c3e;
+  --border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.11);--border3:rgba(255,255,255,0.18);
+  --text:#e6e9f2;--text2:#8892ab;--text3:#505a72;
+  --accent:#4f8ef7;--accent2:#5dd49a;--warn:#f0a94a;--danger:#e05a5a;--gold:#c9a84c;--purple:#8b6ef5;
+  --r:14px;--rs:8px;--rxs:6px;
+}
+html{scroll-behavior:smooth}
+body{font-family:'IBM Plex Sans Arabic','Tajawal',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.65}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(79,142,247,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(79,142,247,0.025) 1px,transparent 1px);background-size:44px 44px;pointer-events:none;z-index:0}
+
+.wrap{position:relative;z-index:1;max-width:1040px;margin:0 auto;padding:24px 18px 60px}
+
+/* SETUP SCREEN */
+.setup-screen{
+  min-height:100vh;display:flex;align-items:center;justify-content:center;
+  padding:20px;
+}
+.setup-card{
+  background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);
+  padding:36px 32px;width:100%;max-width:500px;
+}
+.setup-card .logo{font-size:40px;text-align:center;margin-bottom:16px}
+.setup-card h1{font-size:20px;font-weight:600;text-align:center;margin-bottom:6px}
+.setup-card .sub{font-size:13px;color:var(--text3);text-align:center;margin-bottom:28px}
+.setup-field{margin-bottom:16px}
+.setup-field label{display:block;font-size:12px;color:var(--text2);margin-bottom:6px}
+.setup-field input{
+  width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rs);
+  padding:11px 14px;color:var(--text);font-family:inherit;font-size:13px;outline:none;
+  transition:border-color 0.2s;direction:ltr;
+}
+.setup-field input:focus{border-color:var(--accent)}
+.setup-field input::placeholder{color:var(--text3)}
+.setup-hint{font-size:11px;color:var(--text3);margin-top:5px}
+.setup-hint a{color:var(--accent);text-decoration:none}
+.setup-hint a:hover{text-decoration:underline}
+.setup-steps{
+  background:var(--bg3);border-radius:var(--rs);padding:14px;margin-bottom:20px;
+  font-size:12px;color:var(--text2);line-height:2;
+}
+.setup-steps strong{color:var(--gold)}
+
+/* TOP BAR */
+.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:28px;padding-bottom:18px;border-bottom:1px solid var(--border)}
+.brand{display:flex;align-items:center;gap:10px}
+.brand-icon{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#4f8ef7,#8b6ef5);display:flex;align-items:center;justify-content:center;font-size:18px}
+.brand-name{font-size:17px;font-weight:600}
+.brand-tag{font-size:11px;color:var(--text3);margin-top:1px}
+.topbar-r{display:flex;align-items:center;gap:10px}
+.date-chip{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rs);padding:7px 14px;font-size:12px;color:var(--text2);text-align:center;line-height:1.4}
+.date-chip strong{display:block;font-size:16px;font-weight:600;color:var(--text)}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:var(--accent2);animation:blink 2s infinite;flex-shrink:0}
+.sync-dot.syncing{background:var(--warn)}
+.sync-dot.err{background:var(--danger);animation:none}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px}
+.sc{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;transition:border-color 0.2s}
+.sc:hover{border-color:var(--border2)}
+.sc .lbl{font-size:11px;color:var(--text3);margin-bottom:6px}
+.sc .val{font-size:26px;font-weight:700;line-height:1}
+.sc .sub{font-size:10px;color:var(--text3);margin-top:3px}
+.sc.tb{border-top:2px solid var(--accent)}
+.sc.tg{border-top:2px solid var(--accent2)}
+.sc.to{border-top:2px solid var(--gold)}
+.sc.tw{border-top:2px solid var(--warn)}
+.sc.tp{border-top:2px solid var(--purple)}
+.pb{height:4px;background:var(--bg5);border-radius:10px;margin-top:8px;overflow:hidden}
+.pf{height:100%;border-radius:10px;transition:width 0.7s cubic-bezier(0.34,1.56,0.64,1)}
+
+/* STREAK */
+.streak{background:linear-gradient(135deg,rgba(201,168,76,0.1),rgba(201,168,76,0.03));border:1px solid rgba(201,168,76,0.2);border-radius:var(--r);padding:13px 18px;display:flex;align-items:center;gap:12px;margin-bottom:20px}
+.streak .si{font-size:28px;flex-shrink:0}
+.streak strong{display:block;font-size:14px;color:var(--gold);font-weight:600}
+.streak span{font-size:12px;color:var(--text3)}
+
+/* GRID */
+.grid{display:grid;grid-template-columns:1fr 300px;gap:14px}
+
+/* PANEL */
+.panel{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.phd{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.phd h2{font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px}
+.ldot{width:7px;height:7px;border-radius:50%;background:var(--accent);animation:blink 2s infinite}
+
+/* ADD */
+.add{padding:12px 14px;border-bottom:1px solid var(--border);background:var(--bg3)}
+.ar1{display:flex;gap:8px;margin-bottom:7px}
+.ar2{display:flex;gap:7px}
+input.ti,select.ti{
+  flex:1;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--rs);
+  padding:9px 13px;color:var(--text);font-family:inherit;font-size:13px;outline:none;
+  transition:border-color 0.2s;direction:rtl;
+}
+input.ti:focus,select.ti:focus{border-color:var(--accent)}
+input.ti::placeholder{color:var(--text3)}
+select.ti{cursor:pointer;padding:7px 9px;font-size:12px;color:var(--text2)}
+
+.btn{background:var(--accent);border:none;border-radius:var(--rs);padding:9px 16px;color:#fff;font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;transition:opacity 0.2s,transform 0.1s;white-space:nowrap}
+.btn:hover{opacity:0.85}.btn:active{transform:scale(0.97)}
+.btn.sm{padding:6px 12px;font-size:11px}
+.btn.gh{background:transparent;border:1px solid var(--border2);color:var(--text2)}.btn.gh:hover{background:var(--bg4);color:var(--text)}
+.btn.pu{background:var(--purple)}
+.btn.gn{background:var(--accent2);color:#0a1a14}
+.btn.dn{background:var(--danger)}
+
+/* FILTERS */
+.ftabs{display:flex;gap:4px;padding:9px 14px;border-bottom:1px solid var(--border);overflow-x:auto}
+.ft{background:transparent;border:1px solid transparent;border-radius:20px;padding:4px 12px;font-size:11px;color:var(--text3);cursor:pointer;font-family:inherit;transition:all 0.2s;white-space:nowrap}
+.ft:hover{color:var(--text2)}.ft.on{background:var(--bg4);border-color:var(--border2);color:var(--text)}
+
+/* TASKS */
+.tlist{padding:8px;min-height:260px;max-height:420px;overflow-y:auto}
+.tlist::-webkit-scrollbar{width:3px}.tlist::-webkit-scrollbar-thumb{background:var(--bg5);border-radius:3px}
+.ti-item{display:flex;align-items:flex-start;gap:9px;padding:10px;border-radius:var(--rs);margin-bottom:3px;border:1px solid transparent;transition:background 0.15s,border-color 0.15s;animation:sIn 0.22s ease}
+@keyframes sIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
+.ti-item:hover{background:var(--bg3);border-color:var(--border)}
+.ti-item.done-item{opacity:0.38}
+.ti-item.done-item .ttl{text-decoration:line-through;color:var(--text3)}
+.ti-item.ai-item{border-color:rgba(139,110,245,0.3);background:rgba(139,110,245,0.04)}
+.chk{width:18px;height:18px;border-radius:5px;border:1.5px solid var(--border3);background:transparent;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all 0.2s;margin-top:2px;font-size:11px;color:transparent}
+.chk:hover{border-color:var(--accent2)}.chk.ck{background:var(--accent2);border-color:var(--accent2);color:#fff}
+.tbody{flex:1;min-width:0}
+.ttl{font-size:13px;color:var(--text);line-height:1.45;word-break:break-word}
+.tmeta{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px;align-items:center}
+.tag{font-size:10px;padding:2px 7px;border-radius:20px;font-weight:500}
+.tag.high{background:rgba(224,90,90,0.15);color:#e08080;border:1px solid rgba(224,90,90,0.25)}
+.tag.med{background:rgba(240,169,74,0.15);color:#e8b060;border:1px solid rgba(240,169,74,0.25)}
+.tag.low{background:rgba(93,212,154,0.15);color:#5dd49a;border:1px solid rgba(93,212,154,0.25)}
+.tag.cat{background:rgba(79,142,247,0.1);color:#7aabf7;border:1px solid rgba(79,142,247,0.2)}
+.tag.ai{background:rgba(139,110,245,0.12);color:#a890f7;border:1px solid rgba(139,110,245,0.25)}
+.ttime{font-size:10px;color:var(--text3)}
+.tacts{display:flex;gap:3px;opacity:0;transition:opacity 0.15s;flex-shrink:0}
+.ti-item:hover .tacts{opacity:1}
+.ibtn{width:24px;height:24px;border-radius:var(--rxs);background:transparent;border:1px solid var(--border);cursor:pointer;color:var(--text3);font-size:12px;display:flex;align-items:center;justify-content:center;transition:all 0.15s}
+.ibtn:hover{background:var(--bg5);color:var(--text)}
+.ibtn.fb:hover{color:var(--accent);border-color:rgba(79,142,247,0.4)}
+.ibtn.db:hover{color:var(--danger);border-color:rgba(224,90,90,0.4)}
+
+/* SUBTASKS */
+.slist{margin-top:6px;padding-right:6px}
+.sit{display:flex;align-items:center;gap:6px;margin-bottom:3px}
+.schk{width:14px;height:14px;border-radius:4px;border:1px solid var(--border3);background:transparent;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;color:transparent}
+.schk.dc{background:var(--accent2);border-color:var(--accent2);color:#fff}
+.stxt{font-size:11px;color:var(--text3)}.stxt.dt{text-decoration:line-through}
+
+.empty{text-align:center;padding:44px 20px;color:var(--text3)}
+.empty .ei{font-size:36px;margin-bottom:10px}.empty p{font-size:13px}
+
+/* AI PANEL */
+.ai-panel{background:linear-gradient(135deg,rgba(139,110,245,0.06),rgba(79,142,247,0.04));border:1px solid rgba(139,110,245,0.2);border-radius:var(--r);overflow:hidden;margin-top:12px}
+.ai-hd{padding:12px 16px;border-bottom:1px solid rgba(139,110,245,0.15);display:flex;align-items:center;justify-content:space-between}
+.ai-badge{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:#a890f7}
+.ai-dot{width:8px;height:8px;border-radius:50%;background:var(--purple);animation:blink 1.5s infinite}
+.ai-body{padding:14px 16px}
+.ai-chat{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rs);min-height:120px;max-height:240px;overflow-y:auto;padding:12px;margin-bottom:10px;font-size:13px;line-height:1.7}
+.ai-chat::-webkit-scrollbar{width:3px}.ai-chat::-webkit-scrollbar-thumb{background:var(--bg5)}
+.ai-msg{margin-bottom:10px;animation:fIn 0.3s ease}
+@keyframes fIn{from{opacity:0}to{opacity:1}}
+.ai-msg.sys .ai-in{background:rgba(139,110,245,0.1);border:1px solid rgba(139,110,245,0.2);border-radius:var(--rs);padding:10px 13px;color:#c4b0ff;font-size:12px;line-height:1.65}
+.ai-msg.usr .ai-in{background:var(--bg4);border:1px solid var(--border2);border-radius:var(--rs);padding:9px 12px;color:var(--text2);font-size:12px;text-align:left}
+.ai-lbl{font-size:10px;color:var(--text3);margin-bottom:3px}
+.typing{display:none;padding:8px 12px;background:rgba(139,110,245,0.08);border-radius:var(--rxs);font-size:12px;color:var(--text3);align-items:center;gap:6px}
+.typing.show{display:flex}
+.tdots span{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--purple);animation:dp 1.2s infinite}
+.tdots span:nth-child(2){animation-delay:0.2s}.tdots span:nth-child(3){animation-delay:0.4s}
+@keyframes dp{0%,80%,100%{transform:scale(0.6);opacity:0.4}40%{transform:scale(1);opacity:1}}
+.qbtns{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
+.qb{background:var(--bg3);border:1px solid rgba(139,110,245,0.2);border-radius:20px;padding:4px 11px;font-size:11px;color:#a890f7;cursor:pointer;font-family:inherit;transition:all 0.2s;white-space:nowrap}
+.qb:hover{background:rgba(139,110,245,0.12);border-color:rgba(139,110,245,0.4)}
+.ai-ir{display:flex;gap:7px;margin-top:9px}
+
+/* SIDEBAR */
+.sidebar{display:flex;flex-direction:column;gap:12px}
+.week-p{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.week-hd{padding:12px 16px;border-bottom:1px solid var(--border);font-size:13px;font-weight:500}
+.wgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;padding:12px}
+.dcol{display:flex;flex-direction:column;align-items:center;gap:4px}
+.dlbl{font-size:9px;color:var(--text3)}
+.bwrap{height:48px;width:100%;background:var(--bg4);border-radius:4px;display:flex;align-items:flex-end;overflow:hidden}
+.bfill{width:100%;border-radius:4px;transition:height 0.6s cubic-bezier(0.34,1.56,0.64,1);min-height:3px}
+.dnum{font-size:9px;color:var(--text3);font-weight:500}
+
+.focus-p{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:14px}
+.focus-p h3{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:9px}
+.fbox{background:var(--bg3);border:1px solid rgba(79,142,247,0.18);border-radius:var(--rs);padding:10px;margin-bottom:9px;font-size:12px;color:var(--text);line-height:1.5;min-height:44px}
+.trow{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.tnum{font-size:26px;font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums;letter-spacing:-1px}
+.tbtn{background:var(--bg4);border:1px solid var(--border2);border-radius:var(--rxs);padding:6px 12px;color:var(--text2);font-family:inherit;font-size:11px;cursor:pointer;transition:all 0.15s}
+.tbtn:hover{background:var(--accent);color:#fff;border-color:var(--accent)}.tbtn.on{background:rgba(224,90,90,0.15);color:#e08080;border-color:rgba(224,90,90,0.3)}
+
+.note-p{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.note-ta{width:100%;background:transparent;border:none;padding:12px 14px;color:var(--text2);font-family:inherit;font-size:12px;resize:none;outline:none;min-height:90px;direction:rtl;line-height:1.7}
+.note-ta::placeholder{color:var(--text3)}
+.nft{padding:7px 10px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.nft span{font-size:10px;color:var(--text3)}
+
+.bbar{margin-top:16px;padding:12px 16px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);display:flex;align-items:center;justify-content:space-between;gap:10px}
+.qtxt{font-size:12px;color:var(--text3);font-style:italic;flex:1}
+.qtxt strong{color:var(--text2);font-style:normal}
+
+/* MODAL */
+.mbg{position:fixed;inset:0;background:rgba(0,0,0,0.75);backdrop-filter:blur(5px);z-index:100;display:none;align-items:center;justify-content:center}
+.mbg.open{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border3);border-radius:var(--r);padding:22px;width:90%;max-width:460px;animation:mIn 0.2s ease}
+@keyframes mIn{from{opacity:0;transform:scale(0.95) translateY(8px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.modal h3{font-size:15px;font-weight:600;margin-bottom:16px}
+.rgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:12px}
+.rc{background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);padding:12px;text-align:center}
+.rc .ri{font-size:22px;margin-bottom:5px}.rc .rv{font-size:20px;font-weight:700}.rc .rl{font-size:10px;color:var(--text3);margin-top:2px}
+
+/* TOAST */
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(16px);background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rs);padding:9px 18px;font-size:12px;color:var(--text);z-index:200;opacity:0;transition:all 0.28s ease;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@media(max-width:720px){.grid{grid-template-columns:1fr}.stats{grid-template-columns:repeat(3,1fr)}.week-p{display:none}}
+@media(max-width:460px){.stats{grid-template-columns:repeat(2,1fr)}.topbar{flex-direction:column;align-items:flex-start;gap:10px}}
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════
+  SETUP SCREEN (يظهر أول مرة فقط)
+═════════════════════════════════════════ -->
+<div id="setup-screen" class="setup-screen" style="display:none;">
+  <div class="setup-card">
+    <div class="logo">🎯</div>
+    <h1>نظام الإنجاز الذكي</h1>
+    <p class="sub">أدخل بيانات Supabase لمزامنة بياناتك بين جميع أجهزتك</p>
+
+    <div class="setup-steps">
+      <strong>خطوات الحصول على البيانات:</strong><br>
+      ١. سجّل في <a href="https://supabase.com" target="_blank" style="color:var(--accent)">supabase.com</a> ثم أنشئ مشروعاً جديداً<br>
+      ٢. نفّذ ملف <code style="color:var(--warn)">supabase_schema.sql</code> في قسم SQL Editor<br>
+      ٣. اذهب إلى Settings → API وانسخ البيانات أدناه
+    </div>
+
+    <div class="setup-field">
+      <label>Project URL</label>
+      <input type="text" id="sb-url" placeholder="https://xxxxxxxxxxxx.supabase.co" dir="ltr">
+      <div class="setup-hint">Settings → API → Project URL</div>
+    </div>
+    <div class="setup-field">
+      <label>Anon Public Key</label>
+      <input type="password" id="sb-key" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." dir="ltr">
+      <div class="setup-hint">Settings → API → Project API Keys → anon public</div>
+    </div>
+    <div class="setup-field">
+      <label>مفتاح Claude AI (اختياري — للمساعد الذكي)</label>
+      <input type="password" id="sb-ai" placeholder="sk-ant-api03-..." dir="ltr">
+      <div class="setup-hint">من <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a></div>
+    </div>
+    <button class="btn" style="width:100%;padding:12px;font-size:14px;margin-top:4px;" onclick="connectSupabase()">🚀 اتصال وبدء النظام</button>
+    <div id="setup-err" style="color:var(--danger);font-size:12px;text-align:center;margin-top:10px;display:none;"></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+  MAIN APP
+═════════════════════════════════════════ -->
+<div id="app" class="wrap" style="display:none;">
+
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-icon">🎯</div>
+      <div>
+        <div class="brand-name">نظام الإنجاز الذكي</div>
+        <div class="brand-tag">مزامنة سحابية • مدعوم بالذكاء الاصطناعي</div>
+      </div>
+    </div>
+    <div class="topbar-r">
+      <div id="sync-status" style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3);">
+        <div class="sync-dot" id="sync-dot"></div>
+        <span id="sync-lbl">متصل</span>
+      </div>
+      <button class="btn gh sm" onclick="openSummary()">📊 ملخص</button>
+      <button class="btn gh sm" onclick="disconnectDB()" title="تغيير الإعدادات" style="font-size:11px;">⚙️</button>
+      <div class="date-chip">
+        <strong id="day-n">—</strong>
+        <span id="date-s">—</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats">
+    <div class="sc tb"><div class="lbl">📋 مهام اليوم</div><div class="val" id="s1">0</div><div class="sub">إجمالي المضافة</div></div>
+    <div class="sc tg"><div class="lbl">✅ منجز</div><div class="val" id="s2">0</div><div class="sub">مهمة مكتملة</div><div class="pb"><div class="pf" id="p1" style="width:0%;background:var(--accent2)"></div></div></div>
+    <div class="sc to"><div class="lbl">🔥 سلسلة</div><div class="val" id="s3">0</div><div class="sub" id="s3l">يوم متواصل</div></div>
+    <div class="sc tw"><div class="lbl">⚡ الأسبوع</div><div class="val" id="s4">0</div><div class="sub">منجز هذا الأسبوع</div><div class="pb"><div class="pf" id="p2" style="width:0%;background:var(--warn)"></div></div></div>
+    <div class="sc tp"><div class="lbl">🤖 تحليلات AI</div><div class="val" id="s5">0</div><div class="sub">طلبات اليوم</div></div>
+  </div>
+
+  <!-- STREAK BANNER -->
+  <div class="streak">
+    <div class="si" id="st-i">⚡</div>
+    <div><strong id="st-t">جاري التحميل...</strong><span id="st-m"></span></div>
+  </div>
+
+  <!-- MAIN GRID -->
+  <div class="grid">
+    <div>
+      <!-- TASK PANEL -->
+      <div class="panel">
+        <div class="phd">
+          <h2><div class="ldot"></div> قائمة المهام</h2>
+          <span id="plbl" style="font-size:11px;color:var(--text3);">0 معلق</span>
+        </div>
+        <div class="add">
+          <div class="ar1">
+            <input type="text" class="ti" id="ti" placeholder="اكتب مهمة جديدة... (Enter للإضافة)" onkeydown="if(event.key==='Enter')addTask()">
+            <button class="btn" onclick="addTask()">+ إضافة</button>
+          </div>
+          <div class="ar2">
+            <select class="ti" id="tp">
+              <option value="high">🔴 عالية</option>
+              <option value="med" selected>🟡 متوسطة</option>
+              <option value="low">🟢 منخفضة</option>
+            </select>
+            <select class="ti" id="tc">
+              <option value="work">💼 عمل</option>
+              <option value="personal">🧍 شخصي</option>
+              <option value="learn">📚 تعلم</option>
+              <option value="health">💪 صحة</option>
+              <option value="other">📌 أخرى</option>
+            </select>
+          </div>
+        </div>
+        <div class="ftabs">
+          <button class="ft on" onclick="setFilter('all',this)">الكل</button>
+          <button class="ft" onclick="setFilter('pending',this)">⏳ معلق</button>
+          <button class="ft" onclick="setFilter('done',this)">✅ منجز</button>
+          <button class="ft" onclick="setFilter('high',this)">🔴 عالية</button>
+          <button class="ft" onclick="setFilter('work',this)">💼 عمل</button>
+          <button class="ft" onclick="setFilter('learn',this)">📚 تعلم</button>
+          <button class="ft" onclick="setFilter('ai',this)">🤖 AI</button>
+        </div>
+        <div class="tlist" id="tlist"></div>
+      </div>
+
+      <!-- AI PANEL -->
+      <div class="ai-panel">
+        <div class="ai-hd">
+          <div class="ai-badge"><div class="ai-dot"></div>🤖 المساعد الذكي</div>
+          <span style="font-size:10px;color:var(--text3);">Claude AI</span>
+        </div>
+        <div class="ai-body">
+          <div class="qbtns">
+            <button class="qb" onclick="aiDo('analyze')">🔍 حلّل مهامي</button>
+            <button class="qb" onclick="aiDo('priority')">⚡ رتّب أولوياتي</button>
+            <button class="qb" onclick="aiDo('split')">✂️ قسّم مهمة</button>
+            <button class="qb" onclick="aiDo('plan')">📅 خطط يومي</button>
+            <button class="qb" onclick="aiDo('lazy')">😴 أنا متكاسل</button>
+            <button class="qb" onclick="aiDo('review')">📊 راجع أسبوعي</button>
+          </div>
+          <div class="ai-chat" id="ai-chat">
+            <div class="ai-msg sys"><div class="ai-lbl">المساعد الذكي</div><div class="ai-in">مرحباً! مهامك محفوظة في السحابة ومزامنة بين أجهزتك. اضغط أي زر أو اسألني مباشرة.</div></div>
+          </div>
+          <div class="typing" id="typing"><div class="tdots"><span></span><span></span><span></span></div>Claude يفكر...</div>
+          <div class="ai-ir">
+            <input type="text" class="ti" id="ai-in" placeholder="اسأل المساعد الذكي..." onkeydown="if(event.key==='Enter')sendAI()" style="font-size:12px;">
+            <button class="btn pu sm" onclick="sendAI()">إرسال</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="week-p">
+        <div class="week-hd">📅 إنجاز الأسبوع</div>
+        <div class="wgrid" id="wgrid"></div>
+      </div>
+      <div class="focus-p">
+        <h3>⏱️ وضع التركيز</h3>
+        <div class="fbox" id="fbox">اختر مهمة بالضغط على ⚡</div>
+        <div class="trow">
+          <div class="tnum" id="tdisp">25:00</div>
+          <button class="tbtn" id="tbtn" onclick="toggleTimer()">▶ ابدأ</button>
+          <button class="tbtn" onclick="resetTimer()">↺</button>
+        </div>
+        <select class="ti" id="tmins" onchange="resetTimer()" style="margin-bottom:7px;width:100%;">
+          <option value="25">25 دقيقة — بومودورو</option>
+          <option value="15">15 دقيقة — سريع</option>
+          <option value="45">45 دقيقة — عميق</option>
+          <option value="60">60 دقيقة — مكثف</option>
+        </select>
+        <div style="font-size:10px;color:var(--text3)">اضغط ⚡ على أي مهمة للتركيز</div>
+      </div>
+      <div class="note-p">
+        <div class="week-hd">📝 ملاحظات</div>
+        <textarea class="note-ta" id="note-ta" placeholder="أفكار سريعة..."></textarea>
+        <div class="nft"><span id="nsaved">محفوظ</span><button class="btn gh sm" onclick="clearNote()">مسح</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bbar">
+    <div class="qtxt" id="qtxt"></div>
+    <button class="btn gh sm" onclick="nextQ()">💡 اقتباس</button>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="mbg" id="mbg" onclick="if(event.target===this)closeMod()">
+  <div class="modal">
+    <h3>📊 ملخص الأداء</h3>
+    <div class="rgrid" id="rgrid"></div>
+    <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn gh sm" onclick="closeMod()">إغلاق</button>
+      <button class="btn dn sm" onclick="if(confirm('مسح كل مهام اليوم؟'))clearToday()">مسح اليوم</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════
+// CONFIG & STATE
+// ══════════════════════════════════════════════
+let sb = null;        // Supabase client
+let tasks = [];       // local cache
+let history = {};     // { 'YYYY-M-D': count }
+let noteContent = '';
+let aiKey = '';
+let aiCount = 0;
+let filter = 'all';
+let focusId = null;
+let timerSec = 25*60, timerOn = false, timerInt = null;
+
+const CATS = {work:'💼 عمل',personal:'🧍 شخصي',learn:'📚 تعلم',health:'💪 صحة',other:'📌 أخرى'};
+const QUOTES = [
+  'البداية هي نصف كل عمل',
+  'المنجزون لا ينتظرون الدافعية — يبنون النظام',
+  'مهمة صغيرة اليوم أفضل من خطة كبيرة لا تُنفَّذ',
+  'الانضباط يُقهر الكسل',
+  'ركّز على التقدم، لا على الكمال',
+  'التقدم الحقيقي يُبنى بالمتابعة، لا بالعبقرية',
+  'صغّر المهمة حتى لا يكون لديك عذر لتأجيلها',
+  'الوقت لا يعود — لكن القرار بالبدء يصنع الفارق',
+];
+let qIdx = Math.floor(Math.random() * QUOTES.length);
+
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+}
+
+// ══════════════════════════════════════════════
+// SETUP & CONNECTION
+// ══════════════════════════════════════════════
+async function connectSupabase() {
+  const url = document.getElementById('sb-url').value.trim();
+  const key = document.getElementById('sb-key').value.trim();
+  const ai  = document.getElementById('sb-ai').value.trim();
+  const err = document.getElementById('setup-err');
+
+  if (!url || !key) { showSetupErr('يرجى إدخال URL و Key'); return; }
+  if (!url.startsWith('https://')) { showSetupErr('الرابط يجب أن يبدأ بـ https://'); return; }
+
+  try {
+    sb = supabase.createClient(url, key);
+    // Test connection
+    const { error } = await sb.from('tasks').select('id').limit(1);
+    if (error) throw error;
+
+    localStorage.setItem('sb_url', url);
+    localStorage.setItem('sb_key', key);
+    if (ai) { localStorage.setItem('ai_key', ai); aiKey = ai; }
+
+    await startApp();
+  } catch(e) {
+    showSetupErr('فشل الاتصال: ' + (e.message || 'تأكد من البيانات وتنفيذ schema.sql'));
+  }
+}
+
+function showSetupErr(msg) {
+  const el = document.getElementById('setup-err');
+  el.textContent = msg; el.style.display = 'block';
+}
+
+async function startApp() {
+  document.getElementById('setup-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  setSyncState('ok');
+  updateDate();
+  await loadAll();
+  renderTasks(); updateStats(); renderWeek(); updateStreak();
+  nextQ();
+  startRealtime();
+}
+
+function disconnectDB() {
+  if (!confirm('تغيير إعدادات Supabase؟')) return;
+  localStorage.removeItem('sb_url');
+  localStorage.removeItem('sb_key');
+  location.reload();
+}
+
+// ══════════════════════════════════════════════
+// BOOT
+// ══════════════════════════════════════════════
+window.onload = async function() {
+  const url = localStorage.getItem('sb_url');
+  const key = localStorage.getItem('sb_key');
+  aiKey = localStorage.getItem('ai_key') || '';
+
+  if (url && key) {
+    try {
+      sb = supabase.createClient(url, key);
+      const { error } = await sb.from('tasks').select('id').limit(1);
+      if (error) throw error;
+      await startApp();
+    } catch(e) {
+      localStorage.removeItem('sb_url');
+      localStorage.removeItem('sb_key');
+      document.getElementById('setup-screen').style.display = 'flex';
+    }
+  } else {
+    document.getElementById('setup-screen').style.display = 'flex';
+  }
+};
+
+// ══════════════════════════════════════════════
+// SYNC STATE UI
+// ══════════════════════════════════════════════
+function setSyncState(state) {
+  const dot = document.getElementById('sync-dot');
+  const lbl = document.getElementById('sync-lbl');
+  dot.className = 'sync-dot';
+  if (state === 'ok')      { lbl.textContent = 'متصل ☁️'; }
+  if (state === 'syncing') { dot.classList.add('syncing'); lbl.textContent = 'جاري المزامنة...'; }
+  if (state === 'err')     { dot.classList.add('err'); lbl.textContent = 'خطأ في الاتصال'; }
+}
+
+// ══════════════════════════════════════════════
+// LOAD DATA
+// ══════════════════════════════════════════════
+async function loadAll() {
+  setSyncState('syncing');
+  try {
+    // Load tasks (today + last 7 days)
+    const sevenDaysAgo = new Date(); sevenDaysAgo.setDate(sevenDaysAgo.getDate()-7);
+    const { data: tasksData, error: tErr } = await sb.from('tasks').select('*').order('created_at', {ascending:false});
+    if (tErr) throw tErr;
+    tasks = tasksData || [];
+
+    // Load day history
+    const { data: histData, error: hErr } = await sb.from('day_history').select('*');
+    if (hErr) throw hErr;
+    history = {};
+    (histData || []).forEach(r => { history[r.day_key] = r.done_count; });
+
+    // Load note
+    const { data: noteData, error: nErr } = await sb.from('notes').select('*').limit(1).single();
+    if (!nErr && noteData) {
+      noteContent = noteData.content || '';
+      document.getElementById('note-ta').value = noteContent;
+    }
+
+    setSyncState('ok');
+  } catch(e) {
+    setSyncState('err');
+    showToast('⚠️ خطأ في تحميل البيانات');
+  }
+}
+
+// ══════════════════════════════════════════════
+// REALTIME SUBSCRIPTION
+// ══════════════════════════════════════════════
+function startRealtime() {
+  sb.channel('tasks-changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, async () => {
+      await loadAll();
+      renderTasks(); updateStats(); renderWeek(); updateStreak();
+    })
+    .subscribe();
+}
+
+// ══════════════════════════════════════════════
+// TASKS CRUD
+// ══════════════════════════════════════════════
+async function addTask() {
+  const inp = document.getElementById('ti');
+  const text = inp.value.trim();
+  if (!text) { showToast('اكتب نص المهمة أولاً ✏️'); return; }
+  setSyncState('syncing');
+  const task = {
+    text,
+    priority: document.getElementById('tp').value,
+    category: document.getElementById('tc').value,
+    done: false,
+    date: todayKey(),
+    ai_suggested: false,
+    subtasks: []
+  };
+  const { data, error } = await sb.from('tasks').insert([task]).select().single();
+  if (error) { showToast('❌ خطأ في الإضافة'); setSyncState('err'); return; }
+  tasks.unshift(data);
+  inp.value = '';
+  await refreshDayHistory();
+  renderTasks(); updateStats(); renderWeek();
+  setSyncState('ok');
+  showToast('✅ تمت إضافة المهمة');
+}
+
+async function toggleDone(id) {
+  const t = tasks.find(t=>t.id===id); if (!t) return;
+  const newDone = !t.done;
+  setSyncState('syncing');
+  const { error } = await sb.from('tasks').update({ done: newDone }).eq('id', id);
+  if (error) { showToast('❌ خطأ في التحديث'); setSyncState('err'); return; }
+  t.done = newDone;
+  if (newDone) { await refreshDayHistory(); updateStreak(); showToast('🎉 أحسنت! مهمة منجزة'); }
+  renderTasks(); updateStats(); renderWeek();
+  setSyncState('ok');
+}
+
+async function toggleSub(taskId, idx) {
+  const t = tasks.find(t=>t.id===taskId); if (!t || !t.subtasks[idx]) return;
+  t.subtasks[idx].done = !t.subtasks[idx].done;
+  await sb.from('tasks').update({ subtasks: t.subtasks }).eq('id', taskId);
+  renderTasks();
+}
+
+async function deleteTask(id) {
+  setSyncState('syncing');
+  const { error } = await sb.from('tasks').delete().eq('id', id);
+  if (error) { showToast('❌ خطأ في الحذف'); setSyncState('err'); return; }
+  tasks = tasks.filter(t=>t.id!==id);
+  if (focusId===id) { focusId=null; document.getElementById('fbox').textContent='اختر مهمة بالضغط على ⚡'; }
+  renderTasks(); updateStats(); renderWeek();
+  setSyncState('ok');
+  showToast('🗑️ تم الحذف');
+}
+
+// ══════════════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════════════
+function setFilter(f, el) {
+  filter = f;
+  document.querySelectorAll('.ft').forEach(b=>b.classList.remove('on'));
+  el.classList.add('on');
+  renderTasks();
+}
+
+function renderTasks() {
+  const c = document.getElementById('tlist');
+  let list = tasks.filter(t => {
+    if (filter==='all')     return true;
+    if (filter==='pending') return !t.done;
+    if (filter==='done')    return t.done;
+    if (filter==='high')    return t.priority==='high';
+    if (filter==='ai')      return t.ai_suggested;
+    return t.category===filter;
+  });
+  list.sort((a,b)=>{
+    if (a.done!==b.done) return a.done?1:-1;
+    const p={high:0,med:1,low:2};
+    return p[a.priority]-p[b.priority];
+  });
+  const pending = tasks.filter(t=>!t.done).length;
+  document.getElementById('plbl').textContent = `${pending} معلق`;
+  if (!list.length) { c.innerHTML=`<div class="empty"><div class="ei">📭</div><p>لا مهام في هذا التصنيف</p></div>`; return; }
+  c.innerHTML = list.map(t => {
+    const subs = (t.subtasks||[]).map((s,i)=>`
+      <div class="sit">
+        <div class="schk ${s.done?'dc':''}" onclick="toggleSub(${t.id},${i})">${s.done?'✓':''}</div>
+        <span class="stxt ${s.done?'dt':''}">${esc(s.text)}</span>
+      </div>`).join('');
+    const time = t.created_at ? new Date(t.created_at).toLocaleTimeString('ar',{hour:'2-digit',minute:'2-digit'}) : '';
+    return `<div class="ti-item ${t.done?'done-item':''} ${t.ai_suggested?'ai-item':''}" id="ti-${t.id}">
+      <div class="chk ${t.done?'ck':''}" onclick="toggleDone(${t.id})">${t.done?'✓':''}</div>
+      <div class="tbody">
+        <div class="ttl">${esc(t.text)}</div>
+        <div class="tmeta">
+          <span class="tag ${t.priority}">${t.priority==='high'?'عالية':t.priority==='med'?'متوسطة':'منخفضة'}</span>
+          <span class="tag cat">${CATS[t.category]||t.category}</span>
+          ${t.ai_suggested?'<span class="tag ai">🤖 AI</span>':''}
+          <span class="ttime">${time}</span>
+        </div>
+        ${subs ? `<div class="slist">${subs}</div>` : ''}
+      </div>
+      <div class="tacts">
+        <button class="ibtn fb" onclick="setFocus(${t.id})">⚡</button>
+        <button class="ibtn db" onclick="deleteTask(${t.id})">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+
+// ══════════════════════════════════════════════
+// STATS & STREAK
+// ══════════════════════════════════════════════
+function updateStats() {
+  const td = tasks.filter(t=>t.date===todayKey());
+  const total=td.length, done=td.filter(t=>t.done).length;
+  const pct=total>0?Math.round((done/total)*100):0;
+  const wk=getWeekDone();
+  document.getElementById('s1').textContent=total;
+  document.getElementById('s2').textContent=done;
+  document.getElementById('p1').style.width=pct+'%';
+  document.getElementById('s4').textContent=wk;
+  document.getElementById('p2').style.width=Math.min(wk*7,100)+'%';
+  document.getElementById('s5').textContent=aiCount;
+}
+
+function getWeekDone(){
+  let c=0,now=new Date();
+  for(let i=0;i<7;i++){const d=new Date(now);d.setDate(d.getDate()-i);const k=`${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;c+=(history[k]||0);}
+  return c;
+}
+
+async function refreshDayHistory() {
+  const k = todayKey();
+  const count = tasks.filter(t=>t.date===k&&t.done).length;
+  history[k] = count;
+  await sb.from('day_history').upsert({day_key:k, done_count:count}, {onConflict:'day_key'});
+  document.getElementById('s3').textContent = calcStreak();
+}
+
+function calcStreak(){
+  let s=0,now=new Date();
+  for(let i=0;i<365;i++){const d=new Date(now);d.setDate(d.getDate()-i);const k=`${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;if((history[k]||0)>0)s++;else if(i>0)break;}
+  return s;
+}
+
+function updateStreak(){
+  const s=calcStreak();
+  document.getElementById('s3').textContent=s;
+  const i=document.getElementById('st-i'), t=document.getElementById('st-t'), m=document.getElementById('st-m');
+  if(s===0){i.textContent='⚡';t.textContent='ابدأ سلسلتك اليوم';m.textContent=' — أنجز مهمة واحدة للبدء';}
+  else if(s<3){i.textContent='🔥';t.textContent=`${s} يوم متواصل — بداية ممتازة!`;m.textContent=' واصل غداً';}
+  else if(s<7){i.textContent='🔥';t.textContent=`${s} أيام متواصلة — رائع!`;m.textContent=' لا تكسر السلسلة';}
+  else{i.textContent='⚡';t.textContent=`${s} يوماً متواصلاً — أسطوري!`;m.textContent=' أنت تبني عادة حياة حقيقية';}
+  document.getElementById('s3l').textContent=s>0?'يوم متواصل 🔥':'يوم متواصل';
+}
+
+// ══════════════════════════════════════════════
+// WEEK CHART
+// ══════════════════════════════════════════════
+function renderWeek(){
+  const c=document.getElementById('wgrid');
+  const DN=['أح','اث','ث','أر','خ','ج','س'];
+  const now=new Date(), cells=[];
+  for(let i=6;i>=0;i--){const d=new Date(now);d.setDate(d.getDate()-i);const k=`${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;cells.push({l:DN[d.getDay()],cnt:history[k]||0,today:i===0});}
+  const mx=Math.max(...cells.map(c=>c.cnt),1);
+  c.innerHTML=cells.map(c=>{
+    const h=Math.round((c.cnt/mx)*48);
+    const col=c.today?'#4f8ef7':c.cnt>0?'#5dd49a':'#1f2434';
+    return `<div class="dcol"><div class="bwrap"><div class="bfill" style="height:${Math.max(h,3)}px;background:${col}"></div></div><div class="dlbl">${c.l}</div><div class="dnum">${c.cnt||''}</div></div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════
+// FOCUS & TIMER
+// ══════════════════════════════════════════════
+function setFocus(id){
+  const t=tasks.find(t=>t.id===id);if(!t)return;
+  focusId=id;document.getElementById('fbox').textContent=t.text;
+  resetTimer();showToast('⚡ مهمة التركيز محددة');
+}
+function toggleTimer(){
+  if(timerOn){clearInterval(timerInt);timerOn=false;document.getElementById('tbtn').textContent='▶ استمر';document.getElementById('tbtn').classList.remove('on');}
+  else{timerOn=true;document.getElementById('tbtn').textContent='⏸ إيقاف';document.getElementById('tbtn').classList.add('on');timerInt=setInterval(()=>{timerSec--;updTDisp();if(timerSec<=0){clearInterval(timerInt);timerOn=false;document.getElementById('tbtn').textContent='▶ ابدأ';document.getElementById('tbtn').classList.remove('on');showToast('🎉 انتهت الجلسة! أحسنت');timerSec=parseInt(document.getElementById('tmins').value)*60;updTDisp();}},1000);}
+}
+function resetTimer(){clearInterval(timerInt);timerOn=false;timerSec=parseInt(document.getElementById('tmins').value)*60;updTDisp();document.getElementById('tbtn').textContent='▶ ابدأ';document.getElementById('tbtn').classList.remove('on');}
+function updTDisp(){const m=String(Math.floor(timerSec/60)).padStart(2,'0'),s=String(timerSec%60).padStart(2,'0');document.getElementById('tdisp').textContent=`${m}:${s}`;}
+
+// ══════════════════════════════════════════════
+// AI ENGINE
+// ══════════════════════════════════════════════
+function buildCtx(){
+  const td=tasks.filter(t=>t.date===todayKey());
+  const done=td.filter(t=>t.done), pending=td.filter(t=>!t.done);
+  return `مهام اليوم:\n- معلقة (${pending.length}): ${pending.map(t=>`[${t.priority}] ${t.text}`).join(' | ')||'لا يوجد'}\n- منجزة (${done.length}): ${done.map(t=>t.text).join(' | ')||'لا يوجد'}\nسلسلة الأيام: ${calcStreak()}\nمنجز الأسبوع: ${getWeekDone()}`;
+}
+
+const PROMPTS = {
+  analyze: ()=>`حلّل وضع المستخدم الإنتاجي اليوم في 3-4 جمل عملية. كن مشجعاً وواقعياً.\n\n${buildCtx()}`,
+  priority: ()=>`رتّب المهام المعلقة حسب الأولوية مع سبب موجز لكل ترتيب. اكتب القائمة مرقمة.\n\n${buildCtx()}`,
+  split: ()=>`خذ أكبر مهمة معلقة وقسّمها إلى 4-5 خطوات صغيرة قابلة للتنفيذ فوراً. قائمة مرقمة واضحة.\n\n${buildCtx()}`,
+  plan: ()=>`ضع خطة زمنية لليوم (صباح/بعد الظهر/مساء) مع توزيع المهام المعلقة بشكل منطقي.\n\n${buildCtx()}`,
+  lazy: ()=>`المستخدم يشعر بالتكاسل. ساعده: اختر أسهل مهمة للبدء بها الآن وحفّزه بجملة واحدة قوية.\n\n${buildCtx()}`,
+  review: ()=>`قدّم مراجعة أسبوعية مختصرة: المستوى، الإيجابيات، وتوصية واحدة للأسبوع القادم.\n\n${buildCtx()}`,
+};
+const LABELS = {analyze:'حلّل مهامي',priority:'رتّب أولوياتي',split:'قسّم مهمة',plan:'خطط يومي',lazy:'أنا متكاسل',review:'راجع أسبوعي'};
+
+async function aiDo(type){
+  if(!aiKey){addAiMsg('sys','⚠️ لم يتم تعيين مفتاح Claude AI. أضفه عبر زر ⚙️ لإعادة الإعداد.');return;}
+  addAiMsg('usr',LABELS[type]);
+  await callClaude(PROMPTS[type]());
+}
+
+async function sendAI(){
+  const inp=document.getElementById('ai-in');const text=inp.value.trim();if(!text)return;
+  if(!aiKey){addAiMsg('sys','⚠️ لم يتم تعيين مفتاح Claude AI.');return;}
+  inp.value='';addAiMsg('usr',text);
+  await callClaude(text, `أنت مساعد إنتاجية ذكي. أجب بالعربية بإيجاز وعملية.\n${buildCtx()}`);
+}
+
+async function callClaude(msg, sys){
+  const typing=document.getElementById('typing');
+  typing.classList.add('show');
+  try{
+    const r=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':aiKey,'anthropic-version':'2023-06-01'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:sys||`أنت مساعد إنتاجية. أجب بالعربية بإيجاز.\n${buildCtx()}`,messages:[{role:'user',content:msg}]})
+    });
+    typing.classList.remove('show');
+    if(!r.ok){const e=await r.json().catch(()=>({}));addAiMsg('sys',`❌ خطأ ${r.status}: ${e?.error?.message||''}`);return;}
+    const d=await r.json();const reply=d?.content?.[0]?.text||'(لا إجابة)';
+    aiCount++;document.getElementById('s5').textContent=aiCount;
+    addAiMsg('sys',reply);
+    if(msg.includes('قسّم')||msg.includes('خطوات')) await extractAndSaveSubtasks(reply);
+  }catch(e){
+    typing.classList.remove('show');
+    addAiMsg('sys',`❌ خطأ في الاتصال: ${e.message}`);
+  }
+}
+
+async function extractAndSaveSubtasks(reply){
+  const lines=reply.split('\n').filter(l=>l.match(/^\d+[\.\-\)]/));
+  if(lines.length<2)return;
+  const subs=lines.map(l=>({text:l.replace(/^\d+[\.\-\)]\s*/,'').trim(),done:false})).filter(s=>s.text);
+  if(!subs.length)return;
+  const pending=tasks.filter(t=>!t.done&&t.date===todayKey());
+  if(!pending.length)return;
+  const big=pending.sort((a,b)=>a.priority==='high'?-1:1)[0];
+  const {error}=await sb.from('tasks').update({subtasks:subs,ai_suggested:true}).eq('id',big.id);
+  if(!error){big.subtasks=subs;big.ai_suggested=true;renderTasks();showToast('🤖 تم إضافة الخطوات الفرعية');}
+}
+
+function addAiMsg(role,text){
+  const c=document.getElementById('ai-chat');
+  const div=document.createElement('div');div.className=`ai-msg ${role}`;
+  div.innerHTML=`<div class="ai-lbl">${role==='usr'?'أنت':'المساعد'}</div><div class="ai-in">${esc(text).replace(/\n/g,'<br>')}</div>`;
+  c.appendChild(div);c.scrollTop=c.scrollHeight;
+}
+
+// ══════════════════════════════════════════════
+// NOTE
+// ══════════════════════════════════════════════
+let noteTimer;
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('note-ta').addEventListener('input', ()=>{
+    clearTimeout(noteTimer);
+    noteTimer=setTimeout(async()=>{
+      const content=document.getElementById('note-ta').value;
+      await sb.from('notes').update({content}).eq('id',1);
+      document.getElementById('nsaved').textContent='محفوظ ✓';
+    },1000);
+  });
+});
+
+async function clearNote(){document.getElementById('note-ta').value='';await sb.from('notes').update({content:''}).eq('id',1);}
+
+// ══════════════════════════════════════════════
+// MODAL
+// ══════════════════════════════════════════════
+function openSummary(){
+  const td=tasks.filter(t=>t.date===todayKey());
+  const done=td.filter(t=>t.done).length,total=td.length;
+  const pct=total>0?Math.round((done/total)*100):0;
+  document.getElementById('rgrid').innerHTML=[
+    ['📋',total,'مهام اليوم','var(--accent)'],['✅',done,'منجز اليوم','var(--accent2)'],
+    ['📊',pct+'%','نسبة الإنجاز','var(--gold)'],['🔥',calcStreak(),'أيام متواصلة','var(--warn)'],
+    ['📅',getWeekDone(),'منجز الأسبوع','var(--accent)'],['🏆',tasks.filter(t=>t.done).length,'إجمالي الإنجاز','var(--gold)'],
+  ].map(([ri,rv,rl,col])=>`<div class="rc"><div class="ri">${ri}</div><div class="rv" style="color:${col}">${rv}</div><div class="rl">${rl}</div></div>`).join('');
+  document.getElementById('mbg').classList.add('open');
+}
+function closeMod(){document.getElementById('mbg').classList.remove('open');}
+
+async function clearToday(){
+  const td=tasks.filter(t=>t.date===todayKey()&&!t.done);
+  for(const t of td) await sb.from('tasks').delete().eq('id',t.id);
+  tasks=tasks.filter(t=>!(t.date===todayKey()&&!t.done));
+  closeMod();renderTasks();updateStats();showToast('تم مسح مهام اليوم غير المنجزة');
+}
+
+// ══════════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════════
+function updateDate(){
+  const now=new Date();
+  const DN=['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+  const MN=['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+  document.getElementById('day-n').textContent=DN[now.getDay()];
+  document.getElementById('date-s').textContent=`${now.getDate()} ${MN[now.getMonth()]}`;
+}
+
+function nextQ(){qIdx=(qIdx+1)%QUOTES.length;document.getElementById('qtxt').innerHTML=`<strong>"</strong> ${QUOTES[qIdx]} <strong>"</strong>`;}
+
+let toastT;
+function showToast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2800);}
+</script>
+</body>
+</html>
